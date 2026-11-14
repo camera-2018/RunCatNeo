@@ -57,9 +57,16 @@ jobs:
       - name: Verify and package app
         run: |
           app=DerivedData/Build/Products/Release/RunCatNeo.app
+          entitlements=DerivedData/RunCatNeo.entitlements
+          codesign --display --entitlements - --xml "$app" > "$entitlements"
+          if /usr/libexec/PlistBuddy -c 'Print :com.apple.security.get-task-allow' "$entitlements" >/dev/null 2>&1; then
+            /usr/libexec/PlistBuddy -c 'Delete :com.apple.security.get-task-allow' "$entitlements"
+          fi
+          codesign --force --sign - --timestamp=none --options runtime \
+            --entitlements "$entitlements" "$app"
           codesign --verify --deep --strict --verbose=2 "$app"
-          codesign --display --entitlements :- "$app"
-          lipo -verify_arch arm64 "$app/Contents/MacOS/RunCatNeo"
+          codesign --display --entitlements - --xml "$app"
+          lipo "$app/Contents/MacOS/RunCatNeo" -verify_arch arm64
           mkdir -p dist
           ditto -c -k --sequesterRsrc --keepParent \
             "$app" dist/RunCatNeo-macOS-arm64.zip
